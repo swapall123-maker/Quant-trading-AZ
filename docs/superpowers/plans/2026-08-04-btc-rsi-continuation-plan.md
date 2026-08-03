@@ -37,7 +37,7 @@
 - Produces `continuation_action(rsi: float, previous_rsi: float, price: float, last_oversold_buy_price: float | None, last_overbought_sell_price: float | None) -> str | None`.
 - Returns only `"buy_continuation"`, `"sell_continuation"` or `None`.
 
-- [ ] **Step 1: Write failing continuation tests**
+- [x] **Step 1: Write failing continuation tests**
 
 ```python
 def test_buy_continuation_below_reference_after_rsi_leaves_oversold(self):
@@ -58,13 +58,13 @@ def test_conflicting_continuations_skip_the_candle(self):
     self.assertIsNone(continuation_action(50, 40, 100, 101, 99))
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `cd workspace && PYTHONPATH=strategies python3 -m unittest tests/test_rsi_dca_sizing.py -v`
 
 Expected: import failure for `continuation_action`.
 
-- [ ] **Step 3: Add the minimal pure selector**
+- [x] **Step 3: Add the minimal pure selector**
 
 ```python
 def continuation_action(rsi, previous_rsi, price, last_oversold_buy_price,
@@ -84,7 +84,7 @@ def continuation_action(rsi, previous_rsi, price, last_oversold_buy_price,
     return "buy_continuation" if buy else "sell_continuation"
 ```
 
-- [ ] **Step 4: Verify GREEN and commit**
+- [x] **Step 4: Verify GREEN and commit**
 
 Run: `cd workspace && PYTHONPATH=strategies python3 -m unittest tests/test_rsi_dca_sizing.py -v`
 
@@ -102,13 +102,13 @@ Run: `git add workspace/strategies/rsi_dca_sizing.py workspace/tests/test_rsi_dc
 - Persists `last_oversold_buy_price`, `last_overbought_sell_price`, and `last_rsi_adjustment` via `Trade.set_custom_data`.
 - Emits tags `rsi_oversold_buy`, `buy_continuation`, `rsi_overbought_sell`, and `sell_continuation`.
 
-- [ ] **Step 1: Add failing strategy-discovery expectation**
+- [x] **Step 1: Add failing strategy-discovery expectation**
 
 Run: `docker compose --project-name quant-freqtrade -f workspace/docker-compose.yml run --rm freqtrade list-strategies --strategy-path /freqtrade/user_data/strategies`
 
 Expected: current strategy loads but has no continuation tags; this establishes the pre-change Docker import baseline.
 
-- [ ] **Step 2: Implement strategy state and order tags**
+- [x] **Step 2: Implement strategy state and order tags**
 
 In `populate_entry_trend`, rename the normal tag to `rsi_oversold_buy`. In `adjust_trade_position`, get the latest and previous RSI candles, select normal action first, otherwise call `continuation_action`. Use `buy_stake` for `rsi_oversold_buy`/`buy_continuation`, and `sell_stake` for `rsi_overbought_sell`/`sell_continuation`. Do not set reference prices at signal time.
 
@@ -125,13 +125,13 @@ def order_filled(self, pair, trade, order, current_time, **kwargs):
 
 Use the existing daily marker to prevent duplicate callback orders. If data is missing, RSI is NaN, reference price is absent, action stakes are dust, or both continuation directions match, return `None`.
 
-- [ ] **Step 3: Verify strategy discovery and unit regressions**
+- [x] **Step 3: Verify strategy discovery and unit regressions**
 
 Run: `docker compose --project-name quant-freqtrade -f workspace/docker-compose.yml run --rm freqtrade list-strategies --strategy-path /freqtrade/user_data/strategies && cd workspace && PYTHONPATH=strategies python3 -m unittest tests/test_rsi_dca_sizing.py -v`
 
 Expected: strategy imports and all tests pass.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 Run: `git add workspace/strategies/BtcRsiDcaStrategy.py && git commit -m "feat: continue RSI positions by reference price"`
 
@@ -146,7 +146,7 @@ Run: `git add workspace/strategies/BtcRsiDcaStrategy.py && git commit -m "feat: 
 - Produces CLI: `python3 workspace/scripts/export_trade_history.py <backtest-results-dir> <output-csv>`.
 - CSV columns: `date`, `pair`, `side`, `tag`, `price`, `amount`, `cost`.
 
-- [ ] **Step 1: Write failing extraction test**
+- [x] **Step 1: Write failing extraction test**
 
 ```python
 def test_order_rows_keeps_only_filled_buy_and_sell_orders(self):
@@ -157,17 +157,17 @@ def test_order_rows_keeps_only_filled_buy_and_sell_orders(self):
     self.assertEqual([row["tag"] for row in order_rows(trades)], ["rsi_oversold_buy", "rsi_overbought_sell"])
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `cd workspace && PYTHONPATH=scripts python3 -m unittest tests/test_export_trade_history.py -v`
 
 Expected: import failure for `export_trade_history`.
 
-- [ ] **Step 3: Implement stdlib-only CSV export**
+- [x] **Step 3: Implement stdlib-only CSV export**
 
 Read the newest Freqtrade results zip and its backtest JSON member with `zipfile.ZipFile`, use `csv.DictWriter`, and traverse every strategy's `trades`. Keep only orders with an `order_filled_timestamp`, a positive `amount`, and side `buy` or `sell`; map `safe_price`, `amount`, `cost` and the order tag. Tags preserve whether an order was normal RSI or a continuation order.
 
-- [ ] **Step 4: Verify GREEN and commit**
+- [x] **Step 4: Verify GREEN and commit**
 
 Run: `cd workspace && PYTHONPATH=scripts python3 -m unittest tests/test_export_trade_history.py -v`
 
@@ -180,7 +180,7 @@ Run: `git add workspace/scripts/export_trade_history.py workspace/tests/test_exp
 **Files:**
 - Modify: `docs/runbooks/btc-rsi-dca-backtest.md`
 
-- [ ] **Step 1: Confirm no Freqtrade host port, then refresh daily BTC data**
+- [x] **Step 1: Confirm no Freqtrade host port, then refresh daily BTC data**
 
 Run: `docker ps --format '{{.Names}} {{.Ports}}'`
 
@@ -188,7 +188,7 @@ Run: `docker compose --project-name quant-freqtrade -f workspace/docker-compose.
 
 Expected: no Freqtrade port; only ignored local data changes.
 
-- [ ] **Step 2: Run the continuation backtest and export history**
+- [x] **Step 2: Run the continuation backtest and export history**
 
 Run: `docker compose --project-name quant-freqtrade -f workspace/docker-compose.yml run --rm freqtrade backtesting --config /freqtrade/user_data/config.rsi-dca.json --strategy BtcRsiDcaStrategy --strategy-path /freqtrade/user_data/strategies --timerange 20200101-20260804 --export trades --backtest-directory /freqtrade/user_data/backtest_results`
 
@@ -196,7 +196,7 @@ Run: `python3 workspace/scripts/export_trade_history.py workspace/backtest_resul
 
 Expected: Freqtrade completes in spot dry-run mode and a local ignored CSV lists every filled order.
 
-- [ ] **Step 3: Update runbook and verify final state**
+- [x] **Step 3: Update runbook and verify final state**
 
 Record actual data range, Freqtrade version, final balance, return, drawdown, order counts by four tags, CSV path and post-run port check. State results are historical only.
 
@@ -204,6 +204,6 @@ Run: `cd workspace && PYTHONPATH=strategies:scripts python3 -m unittest discover
 
 Expected: all tests pass, no Freqtrade container or host port remains, and diff check is clean.
 
-- [ ] **Step 4: Commit the run evidence**
+- [x] **Step 4: Commit the run evidence**
 
 Run: `git add docs/runbooks/btc-rsi-dca-backtest.md && git commit -m "docs: record RSI continuation backtest"`

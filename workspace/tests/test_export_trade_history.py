@@ -26,6 +26,14 @@ class ExportTradeHistoryTest(unittest.TestCase):
                         "cost": 710,
                     },
                     {
+                        "order_filled_timestamp": 1_577_836_800_000,
+                        "ft_order_side": "buy",
+                        "ft_order_tag": "rsi_oversold_buy",
+                        "safe_price": 7_000,
+                        "amount": 0.1,
+                        "cost": 700,
+                    },
+                    {
                         "ft_order_side": "buy",
                         "ft_order_tag": "unfilled",
                         "safe_price": 7_200,
@@ -44,3 +52,4 @@ class ExportTradeHistoryTest(unittest.TestCase):
         )
         self.assertEqual(rows[0]["date"], "2020-01-01T00:00:00+00:00")
         self.assertEqual(rows[1]["side"], "sell")
+        self.assertEqual(len(rows), 2)

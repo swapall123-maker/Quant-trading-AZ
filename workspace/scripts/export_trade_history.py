@@ -14,6 +14,7 @@ FIELDNAMES = ["date", "pair", "side", "tag", "price", "amount", "cost"]
 def order_rows(trades: list[dict]) -> list[dict[str, object]]:
     """Return one CSV-ready row per filled buy or sell order."""
     rows: list[dict[str, object]] = []
+    seen_orders: set[tuple[object, ...]] = set()
     for trade in trades:
         for order in trade.get("orders", []):
             timestamp = order.get("order_filled_timestamp")
@@ -21,6 +22,18 @@ def order_rows(trades: list[dict]) -> list[dict[str, object]]:
             amount = order.get("amount", 0)
             if timestamp is None or side not in {"buy", "sell"} or amount <= 0:
                 continue
+            identity = (
+                trade.get("pair", ""),
+                timestamp,
+                side,
+                order.get("ft_order_tag", ""),
+                order.get("safe_price", ""),
+                amount,
+                order.get("cost", ""),
+            )
+            if identity in seen_orders:
+                continue
+            seen_orders.add(identity)
             rows.append(
                 {
                     "date": datetime.fromtimestamp(timestamp / 1000, UTC).isoformat(),
