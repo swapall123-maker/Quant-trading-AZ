@@ -1,0 +1,12 @@
+services:
+  freqtrade:
+    image: freqtradeorg/freqtrade:stable
+    volumes:
+      - ./:/freqtrade/user_data
+      - ../data:/freqtrade/user_data/data
+    command: >
+      backtesting
+      --config /freqtrade/user_data/config.backtest.json
+      --strategy SampleStrategy
+      --timerange 20250101-20251231
+      -i 1h

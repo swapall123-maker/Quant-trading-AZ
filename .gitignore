@@ -1,2 +1,12 @@
 # Git worktrees are local implementation environments.
 /.worktrees/
+
+# Upstream source and local Freqtrade artefacts.
+/vendor/freqtrade/
+/data/
+/workspace/config.local.json
+/workspace/logs/
+/workspace/backtest_results/
+*.sqlite
+*.sqlite-journal
+*.log
