@@ -17,6 +17,31 @@ def action_for_rsi(rsi: float) -> str | None:
     return None
 
 
+def continuation_action(
+    rsi: float,
+    previous_rsi: float,
+    price: float,
+    last_oversold_buy_price: float | None,
+    last_overbought_sell_price: float | None,
+) -> str | None:
+    """Select one reference-price continuation action outside RSI extremes."""
+    if not 30 < rsi < 70:
+        return None
+
+    buy_continuation = last_oversold_buy_price is not None and (
+        price < last_oversold_buy_price
+        or (price == last_oversold_buy_price and previous_rsi <= 30)
+    )
+    sell_continuation = last_overbought_sell_price is not None and (
+        price > last_overbought_sell_price
+        or (price == last_overbought_sell_price and previous_rsi >= 70)
+    )
+
+    if buy_continuation == sell_continuation:
+        return None
+    return "buy_continuation" if buy_continuation else "sell_continuation"
+
+
 def buy_stake(equity: float, max_stake: float, min_stake: float | None) -> float | None:
     """Return a cash-capped buy target, or None when it would be exchange dust."""
     stake = min(equity * EQUITY_FRACTION, max_stake)
