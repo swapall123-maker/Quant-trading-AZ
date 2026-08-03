@@ -7,6 +7,8 @@
 /workspace/config.local.json
 /workspace/logs/
 /workspace/backtest_results/
+/workspace/hyperopts/
+/workspace/notebooks/
 *.sqlite
 *.sqlite-journal
 *.log
