@@ -261,3 +261,159 @@ git commit -m "docs: record initial freqtrade backtest"
 - Reproducible commands and retained troubleshooting evidence: Tasks 1 and 4.
 - No initial ML, RL, futures, leverage, optimization or community strategy: Global Constraints and Tasks 1–4.
 
+## Architecture Revision — Takes Precedence
+
+The original task list assumed that generated Freqtrade state lived inside the ignored upstream clone. This revision supersedes that arrangement. The implementation uses an untouched ignored clone only as source reference, while all project-owned assets live in the parent repository.
+
+### Revised file structure
+
+- Modify: `.gitignore` — ignore `vendor/freqtrade/`, `data/`, logs, databases, reports and `workspace/config.local.json`; do not ignore `workspace/config.backtest.json` or `workspace/strategies/`.
+- Create: `workspace/docker-compose.yml` — one Freqtrade service using `freqtradeorg/freqtrade:stable`, with no `ports:` block and no `container_name`.
+- Create: `workspace/config.backtest.json` — non-secret Binance spot configuration for BTC/USDT and ETH/USDT at 1h.
+- Create: `workspace/strategies/` — tracked user-owned strategy directory.
+- Create: `data/` — ignored downloaded OHLCV, database, logs and reports.
+- Create: `vendor/freqtrade/` — ignored clone of upstream stable source, never edited.
+
+### Revised Task 1: Create isolated project-owned Docker workspace
+
+**Files:**
+- Create: `.gitignore`
+- Create: `workspace/docker-compose.yml`
+- Create: `workspace/config.backtest.json`
+- Create: `workspace/strategies/.gitkeep`
+- Test: `docker compose -p quant-freqtrade -f workspace/docker-compose.yml config --quiet`
+
+- [ ] **Step 1: Create the ignore rules**
+
+```gitignore
+/vendor/freqtrade/
+/data/
+/workspace/config.local.json
+/workspace/logs/
+/workspace/backtest_results/
+*.sqlite
+*.sqlite-journal
+*.log
+```
+
+- [ ] **Step 2: Create the Compose service with no host port**
+
+```yaml
+services:
+  freqtrade:
+    image: freqtradeorg/freqtrade:stable
+    volumes:
+      - ./:/freqtrade/user_data
+      - ../data:/freqtrade/user_data/data
+    command: >
+      backtesting
+      --config /freqtrade/user_data/config.backtest.json
+      --strategy SampleStrategy
+      --timerange 20250101-20251231
+      -i 1h
+```
+
+The file must not include `ports:`, `container_name`, `network_mode` or an external network.
+
+- [ ] **Step 3: Create the non-secret backtest config**
+
+```json
+{
+  "$schema": "https://schema.freqtrade.io/schema.json",
+  "dry_run": true,
+  "trading_mode": "spot",
+  "stake_currency": "USDT",
+  "stake_amount": "unlimited",
+  "max_open_trades": 2,
+  "timeframe": "1h",
+  "exchange": {
+    "name": "binance",
+    "key": "",
+    "secret": "",
+    "ccxt_config": {},
+    "ccxt_async_config": {},
+    "pair_whitelist": ["BTC/USDT", "ETH/USDT"],
+    "pair_blacklist": []
+  },
+  "pairlists": [{"method": "StaticPairList"}]
+}
+```
+
+- [ ] **Step 4: Verify rendered Compose configuration**
+
+Run: `docker compose -p quant-freqtrade -f workspace/docker-compose.yml config --quiet`
+
+Expected: exit 0. Then inspect the rendered configuration and confirm no `ports:` key appears.
+
+### Revised Task 2: Clone source and test port isolation
+
+**Files:**
+- Create: `vendor/freqtrade/` as ignored upstream clone
+- Create: `workspace/strategies/SampleStrategy.py` via Freqtrade user-directory initialization
+- Create: `data/` as ignored local asset directory
+- Test: `docker ps --format 'table {{.Names}}\t{{.Ports}}\t{{.Status}}'`
+
+- [ ] **Step 1: Clone stable upstream source**
+
+```bash
+mkdir -p vendor
+git clone --branch stable --single-branch https://github.com/freqtrade/freqtrade.git vendor/freqtrade
+git -C vendor/freqtrade branch --show-current
+git -C vendor/freqtrade status --short
+```
+
+Expected: `stable` and an empty status output.
+
+- [ ] **Step 2: Capture current container port bindings**
+
+Run: `docker ps --format 'table {{.Names}}\t{{.Ports}}\t{{.Status}}'`
+
+Expected: existing PostgreSQL containers retain `5432:5432` and `5433:5432`; no container is restarted or changed.
+
+- [ ] **Step 3: Create the sample strategy without starting a bot**
+
+```bash
+docker compose -p quant-freqtrade -f workspace/docker-compose.yml run --rm freqtrade create-userdir --userdir /freqtrade/user_data
+docker compose -p quant-freqtrade -f workspace/docker-compose.yml run --rm freqtrade list-strategies --userdir /freqtrade/user_data
+```
+
+Expected: `workspace/strategies/SampleStrategy.py` exists and the strategy list includes `SampleStrategy`.
+
+- [ ] **Step 4: Verify no port conflict after initialization**
+
+```bash
+docker ps --format 'table {{.Names}}\t{{.Ports}}\t{{.Status}}'
+docker compose -p quant-freqtrade -f workspace/docker-compose.yml ps
+```
+
+Expected: no `quant-freqtrade` container remains after `run --rm`, no host port is published, and existing port bindings are unchanged.
+
+### Revised Task 3: Download public data and run the smoke test
+
+**Files:**
+- Create: `data/` generated OHLCV and report artifacts, ignored by Git
+- Modify: `docs/runbooks/freqtrade-backtesting.md` with the exact upstream SHA and commands run
+- Test: successful `download-data` and `backtesting` commands
+
+- [ ] **Step 1: Download public spot data**
+
+```bash
+docker compose -p quant-freqtrade -f workspace/docker-compose.yml run --rm freqtrade download-data --config /freqtrade/user_data/config.backtest.json --exchange binance --pairs BTC/USDT ETH/USDT --timeframes 1h --timerange 20250101-20251231
+```
+
+- [ ] **Step 2: Run backtest without publishing a port**
+
+```bash
+docker compose -p quant-freqtrade -f workspace/docker-compose.yml run --rm freqtrade backtesting --config /freqtrade/user_data/config.backtest.json --strategy SampleStrategy --timerange 20250101-20251231 -i 1h
+```
+
+- [ ] **Step 3: Final safety verification**
+
+```bash
+git status --short
+git check-ignore -v data/.gitkeep
+docker ps --format 'table {{.Names}}\t{{.Ports}}\t{{.Status}}'
+docker compose -p quant-freqtrade -f workspace/docker-compose.yml ps
+```
+
+Expected: generated data is ignored; Freqtrade has no running container; no Freqtrade host port is published; existing 5432 and 5433 bindings are unchanged.
