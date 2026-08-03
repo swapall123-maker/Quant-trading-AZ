@@ -36,7 +36,7 @@
 - `buy_stake(equity: float, max_stake: float, min_stake: float | None) -> float | None`
 - `sell_stake(equity: float, position_value: float, trade_stake: float, min_stake: float | None) -> float | None`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 class RsiDcaSizingTest(unittest.TestCase):
@@ -65,13 +65,13 @@ class RsiDcaSizingTest(unittest.TestCase):
         self.assertIsNone(sell_stake(1_000, 100, 80, 10))
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
-Run: `cd workspace && PYTHONPATH=strategies python -m unittest tests/test_rsi_dca_sizing.py -v`
+Run: `cd workspace && PYTHONPATH=strategies python3 -m unittest tests/test_rsi_dca_sizing.py -v`
 
 Expected: fail because `rsi_dca_sizing` is absent.
 
-- [ ] **Step 3: Implement minimal helper**
+- [x] **Step 3: Implement minimal helper**
 
 ```python
 EQUITY_FRACTION = 0.005
@@ -89,13 +89,13 @@ def sell_stake(equity, position_value, trade_stake, min_stake):
     return -trade_stake if value == position_value else -(value * trade_stake / position_value)
 ```
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
-Run: `cd workspace && PYTHONPATH=strategies python -m unittest tests/test_rsi_dca_sizing.py -v`
+Run: `cd workspace && PYTHONPATH=strategies python3 -m unittest tests/test_rsi_dca_sizing.py -v`
 
 Expected: six tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Run: `git add workspace/tests/test_rsi_dca_sizing.py workspace/strategies/rsi_dca_sizing.py && git commit -m "feat: add RSI DCA position sizing"`
 
@@ -108,21 +108,21 @@ Run: `git add workspace/tests/test_rsi_dca_sizing.py workspace/strategies/rsi_dc
 - Consumes the Task 1 helpers.
 - Exposes `BtcRsiDcaStrategy(IStrategy)` using `custom_stake_amount` and `adjust_trade_position`.
 
-- [ ] **Step 1: Implement only from Task 1's passing sizing interface**
+- [x] **Step 1: Implement only from Task 1's passing sizing interface**
 
 Set: `INTERFACE_VERSION = 3`, `can_short = False`, `timeframe = "1d"`, `startup_candle_count = 15`, `position_adjustment_enable = True`, `max_entry_position_adjustment = -1`, `minimal_roi = {"0": 10000}`, `stoploss = -0.99`, `use_exit_signal = False`, `trailing_stop = False`; use market entry/exit/stoploss orders. Add RSI via `ta.RSI(dataframe, timeperiod=14)`. Entry signal is `rsi < 30` and `volume > 0`. The strategy never sets an exit signal.
 
 `custom_stake_amount` creates the initial 0.5%-equity buy from available max stake. `adjust_trade_position` must return `None` for open orders, find the latest analyzed RSI, calculate `free_usdt + trade.amount * current_rate`, then use the already-tested `action_for_rsi` result to call `buy_stake` or `sell_stake`. Return `(amount, "rsi_dca_buy")` or `(amount, "rsi_dca_sell")`; return `None` otherwise.
 
-- [ ] **Step 2: Verify Freqtrade discovers it**
+- [x] **Step 2: Verify Freqtrade discovers it**
 
 Run: `docker compose --project-name quant-freqtrade -f workspace/docker-compose.yml run --rm freqtrade list-strategies --strategy-path /freqtrade/user_data/strategies`
 
 Expected: `BtcRsiDcaStrategy` appears with no import error.
 
-- [ ] **Step 3: Verify sizing tests remain green and commit**
+- [x] **Step 3: Verify sizing tests remain green and commit**
 
-Run: `cd workspace && PYTHONPATH=strategies python -m unittest tests/test_rsi_dca_sizing.py -v && git add workspace/strategies/BtcRsiDcaStrategy.py && git commit -m "feat: add BTC RSI DCA strategy"`
+Run: `cd workspace && PYTHONPATH=strategies python3 -m unittest tests/test_rsi_dca_sizing.py -v && git add workspace/strategies/BtcRsiDcaStrategy.py && git commit -m "feat: add BTC RSI DCA strategy"`
 
 ### Task 3: Configure and document the fixed historical run
 
@@ -130,11 +130,11 @@ Run: `cd workspace && PYTHONPATH=strategies python -m unittest tests/test_rsi_dc
 - Create: `workspace/config.rsi-dca.json`
 - Create: `docs/runbooks/btc-rsi-dca-backtest.md`
 
-- [ ] **Step 1: Add safe config**
+- [x] **Step 1: Add safe config**
 
 Use dry-run Binance spot, `stake_currency: USDT`, `stake_amount: unlimited`, `max_open_trades: 1`, `timeframe: 1d`, `dry_run_wallet: 100000`, `tradable_balance_ratio: 1.0`, one static pair `BTC/USDT`, blank key/secret and position adjustment enabled. Set market order types and disabled order-book pricing. Do not add `ports`, a container name, API credentials or live-trading settings.
 
-- [ ] **Step 2: Add runbook command path**
+- [x] **Step 2: Add runbook command path**
 
 ```bash
 docker compose --project-name quant-freqtrade -f workspace/docker-compose.yml run --rm freqtrade download-data --config /freqtrade/user_data/config.rsi-dca.json --pairs BTC/USDT --timeframes 1d --timerange 20200101-20260804
@@ -143,7 +143,7 @@ docker compose --project-name quant-freqtrade -f workspace/docker-compose.yml ru
 
 Document next-candle execution, strict thresholds, fee sensitivity, actual data end date, tags, historical-only warning and `docker ps --format '{{.Names}} {{.Ports}}'` pre/post port check.
 
-- [ ] **Step 3: Validate config and commit**
+- [x] **Step 3: Validate config and commit**
 
 Run: `docker compose --project-name quant-freqtrade -f workspace/docker-compose.yml run --rm freqtrade show-config --config /freqtrade/user_data/config.rsi-dca.json`
 
@@ -156,23 +156,23 @@ Run: `git add workspace/config.rsi-dca.json docs/runbooks/btc-rsi-dca-backtest.m
 **Files:**
 - Modify: `docs/runbooks/btc-rsi-dca-backtest.md`
 
-- [ ] **Step 1: Confirm no Freqtrade host port**
+- [x] **Step 1: Confirm no Freqtrade host port**
 
 Run: `docker ps --format '{{.Names}} {{.Ports}}'`
 
 Expected: no `quant-freqtrade-*` container or published Freqtrade port.
 
-- [ ] **Step 2: Download and inspect 1d data**
+- [x] **Step 2: Download and inspect 1d data**
 
 Run the download command from Task 3, then `docker compose --project-name quant-freqtrade -f workspace/docker-compose.yml run --rm freqtrade list-data --config /freqtrade/user_data/config.rsi-dca.json --show-timerange`.
 
 Expected: BTC/USDT starts no later than 2020-01-01 and prints its actual final date.
 
-- [ ] **Step 3: Run backtest and append evidence**
+- [x] **Step 3: Run backtest and append evidence**
 
 Run the backtesting command from Task 3. Add the Freqtrade version, actual data range, total profit, final balance, drawdown, entries/exits and historical-only note to the runbook.
 
-- [ ] **Step 4: Confirm teardown and commit**
+- [x] **Step 4: Confirm teardown and commit**
 
 Run: `docker ps --format '{{.Names}} {{.Ports}}'`
 
