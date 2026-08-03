@@ -151,8 +151,8 @@ Run: `git add workspace/strategies/BtcRsiDcaStrategy.py && git commit -m "feat: 
 ```python
 def test_order_rows_keeps_only_filled_buy_and_sell_orders(self):
     trades = [{"pair": "BTC/USDT", "orders": [
-        {"order_date": "2020-01-01T00:00:00Z", "ft_order_side": "buy", "ft_order_tag": "rsi_oversold_buy", "average": 7000, "filled": 0.1, "cost": 700},
-        {"order_date": "2020-01-02T00:00:00Z", "ft_order_side": "sell", "ft_order_tag": "rsi_overbought_sell", "average": 7100, "filled": 0.1, "cost": 710},
+        {"order_filled_timestamp": 1577836800000, "ft_order_side": "buy", "ft_order_tag": "rsi_oversold_buy", "safe_price": 7000, "amount": 0.1, "cost": 700},
+        {"order_filled_timestamp": 1577923200000, "ft_order_side": "sell", "ft_order_tag": "rsi_overbought_sell", "safe_price": 7100, "amount": 0.1, "cost": 710},
     ]}]
     self.assertEqual([row["tag"] for row in order_rows(trades)], ["rsi_oversold_buy", "rsi_overbought_sell"])
 ```
@@ -165,7 +165,7 @@ Expected: import failure for `export_trade_history`.
 
 - [ ] **Step 3: Implement stdlib-only CSV export**
 
-Read the JSON member of the newest Freqtrade zip in the supplied results directory with `zipfile.ZipFile`, use `csv.DictWriter`, and keep only orders with `filled > 0` and side `buy` or `sell`. Map the Freqtrade fields used by the test. Tags preserve whether an order was normal RSI or a continuation order.
+Read the newest Freqtrade results zip and its backtest JSON member with `zipfile.ZipFile`, use `csv.DictWriter`, and traverse every strategy's `trades`. Keep only orders with an `order_filled_timestamp`, a positive `amount`, and side `buy` or `sell`; map `safe_price`, `amount`, `cost` and the order tag. Tags preserve whether an order was normal RSI or a continuation order.
 
 - [ ] **Step 4: Verify GREEN and commit**
 
