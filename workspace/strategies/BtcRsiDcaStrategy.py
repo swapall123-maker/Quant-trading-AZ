@@ -1,13 +1,20 @@
 """Backtest-only daily BTC RSI accumulation and reduction strategy."""
 
 from datetime import datetime
+from math import isfinite
 
 import talib.abstract as ta
 from pandas import DataFrame
 
-from freqtrade.strategy import IStrategy, Trade
+from freqtrade.strategy import IStrategy, Order, Trade
 
-from rsi_dca_sizing import account_equity, action_for_rsi, buy_stake, sell_stake
+from rsi_dca_sizing import (
+    account_equity,
+    action_for_rsi,
+    buy_stake,
+    continuation_action,
+    sell_stake,
+)
 
 
 class BtcRsiDcaStrategy(IStrategy):
@@ -44,7 +51,7 @@ class BtcRsiDcaStrategy(IStrategy):
         dataframe.loc[
             (dataframe["rsi"] < 30) & (dataframe["volume"] > 0),
             ["enter_long", "enter_tag"],
-        ] = (1, "rsi_dca_buy")
+        ] = (1, "rsi_oversold_buy")
         return dataframe
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
@@ -91,8 +98,9 @@ class BtcRsiDcaStrategy(IStrategy):
             return None
 
         latest_candle = dataframe.iloc[-1]
+        previous_candle = dataframe.iloc[-2] if len(dataframe.index) > 1 else None
         rsi = latest_candle["rsi"]
-        if rsi is None:
+        if rsi is None or not isfinite(float(rsi)):
             return None
 
         candle_marker = latest_candle["date"].isoformat()
@@ -104,16 +112,44 @@ class BtcRsiDcaStrategy(IStrategy):
         equity = account_equity(free_usdt, trade.amount, current_rate)
         action = action_for_rsi(float(rsi))
 
-        if action == "buy":
+        if action is None and previous_candle is not None:
+            previous_rsi = previous_candle["rsi"]
+            if previous_rsi is not None and isfinite(float(previous_rsi)):
+                action = continuation_action(
+                    float(rsi),
+                    float(previous_rsi),
+                    current_rate,
+                    trade.get_custom_data("last_oversold_buy_price"),
+                    trade.get_custom_data("last_overbought_sell_price"),
+                )
+
+        if action in {"buy", "buy_continuation"}:
             stake = buy_stake(equity, max_stake, min_stake)
             if stake is not None:
                 trade.set_custom_data("last_rsi_adjustment", candle_marker)
-                return stake, "rsi_dca_buy"
+                tag = "rsi_oversold_buy" if action == "buy" else "buy_continuation"
+                return stake, tag
 
-        if action == "sell":
+        if action in {"sell", "sell_continuation"}:
             stake = sell_stake(equity, position_value, trade.stake_amount, min_stake)
             if stake is not None:
                 trade.set_custom_data("last_rsi_adjustment", candle_marker)
-                return stake, "rsi_dca_sell"
+                tag = "rsi_overbought_sell" if action == "sell" else "sell_continuation"
+                return stake, tag
 
         return None
+
+    def order_filled(
+        self,
+        pair: str,
+        trade: Trade,
+        order: Order,
+        current_time: datetime,
+        **kwargs,
+    ) -> None:
+        """Capture only filled normal-RSI prices as continuation references."""
+        price = float(order.average or order.price)
+        if order.ft_order_tag == "rsi_oversold_buy" and order.ft_order_side == trade.entry_side:
+            trade.set_custom_data("last_oversold_buy_price", price)
+        elif order.ft_order_tag == "rsi_overbought_sell" and order.ft_order_side == trade.exit_side:
+            trade.set_custom_data("last_overbought_sell_price", price)
